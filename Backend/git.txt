@@ -1,0 +1,1 @@
+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git config --global credential.helper osxkeychain  # Mac

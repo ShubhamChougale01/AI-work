@@ -1,0 +1,4 @@
+from app.core.firebase_config import firebase_admin
+from firebase_admin import firestore
+
+db = firestore.client()
