@@ -7,7 +7,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { toast } from "../components/ui/use-toast";
 import { Progress } from "../components/ui/progress";
 
-const Dashboard: React.FC = () => {
+const Landing: React.FC = () => {
   const [selectedAgentId, setSelectedAgentId] = useState("memory");
   const [progress, setProgress] = useState(0);
   const [timeOfDay, setTimeOfDay] = useState("");
@@ -70,7 +70,7 @@ const Dashboard: React.FC = () => {
                 Your AI command center is ready. What would you like to accomplish today?
               </p>
             </div>
-            
+
             {/* Status Cards */}
             <div className="px-6 pb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Intelligence Hub */}
         <div className="mb-6">
           <h2 className="text-lg md:text-xl font-bold mb-3 flex items-center">
@@ -140,7 +140,7 @@ const Dashboard: React.FC = () => {
             onAgentSelect={setSelectedAgentId} 
           />
         </div>
-        
+
         {/* Chat Interface */}
         <Card className="mb-6 overflow-hidden border-none shadow-xl bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 rounded-xl">
           <div className="border-b border-slate-200 dark:border-slate-700 px-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
@@ -165,4 +165,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard;
+export default Landing; 

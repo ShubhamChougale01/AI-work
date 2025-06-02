@@ -1,15 +1,20 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Brain, Lightbulb } from "lucide-react";
 import VoiceInput from "./VoiceInput";
 import { cn } from "@/lib/utils";
+import { apiService } from '../../services/api';
+import { toast } from "./use-toast";
 
 interface Message {
   id: string;
   content: string;
-  sender: "user" | "assistant";
-  timestamp: Date;
-  thinking?: boolean;
+  sender: "user" | "agent";
+  timestamp: string;
+}
+
+interface ChatResponse {
+  message: string;
+  error?: string;
 }
 
 interface ChatInterfaceProps {
@@ -18,70 +23,119 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ agentId, agentName }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      content: `Hi there! I'm your ${agentName}. How can I help you today?`,
-      sender: "assistant",
-      timestamp: new Date(),
-    },
-  ]);
-  const [inputValue, setInputValue] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const getWelcomeMessage = (agentId: string): string => {
+    switch (agentId) {
+      case 'memory':
+        return "Welcome! I'm your Memory Agent, ready to help you store and recall any information you need. What would you like to remember?";
+      case 'goals':
+        return "Hi! I'm your Goal Tracking Agent. I'll help you set, track, and achieve your personal and professional goals. What would you like to accomplish?";
+      case 'reminders':
+        return "Hello! I'm your Reminders Agent, here to make sure you never miss important tasks or events. What can I help you schedule?";
+      default:
+        return `Hi there! I'm your ${agentName}. How can I help you today?`;
+    }
+  };
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Reset messages when agent changes
+  useEffect(() => {
+    setMessages([{
+      id: "welcome",
+      content: getWelcomeMessage(agentId),
+      sender: "agent",
+      timestamp: new Date().toISOString(),
+    }]);
+  }, [agentId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    
-    if (!inputValue.trim() || isProcessing) return;
-    
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      content: inputValue,
-      sender: "user",
-      timestamp: new Date(),
-    };
-    
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsProcessing(true);
-    
-    // Add thinking message
-    const thinkingId = `thinking-${Date.now()}`;
-    setMessages((prev) => [...prev, {
-      id: thinkingId,
-      content: "Analyzing data and preparing response...",
-      sender: "assistant",
-      timestamp: new Date(),
-      thinking: true
-    }]);
-    
-    // Simulate API call to backend
-    setTimeout(() => {
-      // Remove thinking message
-      setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
-      
-      const botResponse: Message = {
-        id: `assistant-${Date.now()}`,
-        content: getRandomResponse(agentId, inputValue),
-        sender: "assistant",
-        timestamp: new Date(),
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    try {
+      setIsLoading(true);
+      // Add user message to chat
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content: inputMessage,
+        sender: "user",
+        timestamp: new Date().toISOString(),
       };
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage('');
       
-      setMessages((prev) => [...prev, botResponse]);
-      setIsProcessing(false);
-    }, 1500);
+      // Get token from your auth state/storage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Send message to backend based on agent type
+      let endpoint = '';
+      switch (agentId) {
+        case 'memory':
+          endpoint = '/memory/';
+          break;
+        case 'goals':
+          endpoint = '/goals/';
+          break;
+        case 'reminders':
+          endpoint = '/reminders/';
+          break;
+        default:
+          endpoint = '/memory/';
+      }
+
+      const response = await apiService.sendMessage<ChatResponse>(
+        inputMessage,
+        endpoint,
+        token
+      );
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      // Add agent response to chat
+      const agentMessage: Message = {
+        id: Date.now().toString(),
+        content: response.message,
+        sender: "agent",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, agentMessage]);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send message",
+        variant: "destructive",
+      });
+      
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: "Sorry, I encountered an error. Please try again.",
+        sender: "agent",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVoiceInput = (transcript: string) => {
-    setInputValue(transcript);
+    setInputMessage(transcript);
     if (transcript) {
-      handleSendMessage();
+      sendMessage();
     }
   };
 
@@ -121,39 +175,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ agentId, agentName }) => 
             <div
               key={message.id}
               className={cn(
-                message.thinking ? "opacity-70" : "",
+                "p-4 rounded-lg",
                 message.sender === "user" 
-                  ? "chat-bubble-user" 
-                  : "chat-bubble-assistant"
+                  ? "bg-assistant-primary text-white ml-12" 
+                  : "bg-slate-100 dark:bg-slate-800 mr-12"
               )}
             >
-              {message.sender === "assistant" && message.thinking ? (
-                <div className="flex items-center">
-                  <Brain size={18} className="mr-2 animate-pulse" />
-                  <p>{message.content}</p>
-                </div>
-              ) : message.sender === "assistant" ? (
-                <div>
-                  <div className="flex items-start">
-                    <div className="bg-assistant-primary text-white p-1.5 rounded-full mr-2">
-                      <Brain size={14} />
-                    </div>
-                    <div>
-                      <p>{message.content}</p>
-                      <div className="text-xs opacity-70 mt-1">
-                        {message.timestamp.toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </div>
+              {message.sender === "agent" && (
+                <div className="flex items-start">
+                  <div className="bg-assistant-primary text-white p-1.5 rounded-full mr-2">
+                    <Brain size={14} />
+                  </div>
+                  <div>
+                    <p>{message.content}</p>
+                    <div className="text-xs opacity-70 mt-1">
+                      {new Date(message.timestamp).toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
                     </div>
                   </div>
                 </div>
-              ) : (
+              )}
+              {message.sender === "user" && (
                 <div>
                   <p>{message.content}</p>
                   <div className="text-xs opacity-70 mt-1 text-right">
-                    {message.timestamp.toLocaleTimeString([], { 
+                    {new Date(message.timestamp).toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}
@@ -162,11 +210,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ agentId, agentName }) => 
               )}
             </div>
           ))}
-          {isProcessing && !messages.some(m => m.thinking) && (
-            <div className="chat-bubble-assistant flex items-center space-x-2">
-              <div className="w-2 h-2 bg-assistant-primary rounded-full animate-pulse-slow"></div>
-              <div className="w-2 h-2 bg-assistant-primary rounded-full animate-pulse-slow delay-150"></div>
-              <div className="w-2 h-2 bg-assistant-primary rounded-full animate-pulse-slow delay-300"></div>
+          {isLoading && (
+            <div className="flex items-center space-x-2 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg mr-12">
+              <div className="w-2 h-2 bg-assistant-primary rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-assistant-primary rounded-full animate-pulse delay-150"></div>
+              <div className="w-2 h-2 bg-assistant-primary rounded-full animate-pulse delay-300"></div>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -175,13 +223,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ agentId, agentName }) => 
 
       {/* Suggestion chips */}
       <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex gap-2 overflow-x-auto scrollbar-none">
-        {['What can you help me with?', 'How does this work?', 'Save this information'].map((suggestion) => (
+        {[
+          'What can you help me with?', 
+          'How does this work?', 
+          'Tell me about my recent activities'
+        ].map((suggestion) => (
           <button 
             key={suggestion} 
             className="text-xs bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full whitespace-nowrap flex items-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             onClick={() => {
-              setInputValue(suggestion);
-              setTimeout(() => handleSendMessage(), 100);
+              setInputMessage(suggestion);
+              setTimeout(() => sendMessage(), 100);
             }}
           >
             <Lightbulb size={12} className="mr-1" />
@@ -192,28 +244,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ agentId, agentName }) => 
 
       {/* Input form */}
       <form 
-        onSubmit={handleSendMessage}
+        onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
         className="border-t border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-900"
       >
         <div className="flex">
           <div className="relative flex-1">
             <input
               type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Type your message..."
               className="w-full p-3 pr-12 rounded-l-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-assistant-primary dark:bg-slate-800"
-              disabled={isProcessing}
+              disabled={isLoading}
             />
             <button
               type="submit"
               className="absolute right-0 top-0 h-full px-3 text-assistant-primary disabled:text-slate-400"
-              disabled={!inputValue.trim() || isProcessing}
+              disabled={!inputMessage.trim() || isLoading}
             >
-              <Send size={20} />
+              {isLoading ? 'Sending...' : <Send size={20} />}
             </button>
           </div>
-          <VoiceInput onTranscript={handleVoiceInput} disabled={isProcessing} />
+          <VoiceInput onTranscript={handleVoiceInput} disabled={isLoading} />
         </div>
       </form>
     </div>

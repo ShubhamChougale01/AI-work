@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Brain, CalendarClock, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,21 +23,21 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
     {
       id: "memory",
       name: "Memory Agent",
-      description: "Your AI memory bank for information storage and recall",
+      description: "Your personal knowledge vault - I store, organize, and help you recall information effortlessly",
       icon: Brain,
       color: "from-purple-500 to-indigo-600",
     },
     {
       id: "goals",
       name: "Goal Tracking Agent",
-      description: "Helps you define and achieve your personal objectives",
+      description: "Your achievement partner - I help break down, track, and celebrate your goal milestones",
       icon: ListChecks,
       color: "from-blue-500 to-cyan-600",
     },
     {
       id: "reminders",
       name: "Reminders Agent",
-      description: "Never miss an important date, meeting or task again",
+      description: "Your time guardian - I ensure you stay on top of schedules, tasks, and important events",
       icon: CalendarClock,
       color: "from-emerald-500 to-teal-600",
     },

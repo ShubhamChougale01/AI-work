@@ -1,7 +1,8 @@
-
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Home, LogOut, Menu, Settings, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Home, LogOut, Menu, Settings, User, X, Info, Mail, LayoutDashboard, Brain, UserCircle, Phone } from "lucide-react";
+import { toast } from "../ui/use-toast";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,83 +11,67 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const navigationItems = [
-    { name: "Dashboard", icon: Home, path: "/dashboard" },
-    { name: "Settings", icon: Settings, path: "/settings" },
-    { name: "Profile", icon: User, path: "/profile" },
+  const navItems = [
+    { path: '/', label: 'Home', icon: <Home className="w-5 h-5" /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { path: '/profile', label: 'Profile', icon: <UserCircle className="w-5 h-5" /> },
+    { path: '/about', label: 'About', icon: <Info className="w-5 h-5" /> },
+    { path: '/contact', label: 'Contact', icon: <Phone className="w-5 h-5" /> },
+    { path: '/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
-  const toggleMobileSidebar = () => {
-    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  const handleLogout = () => {
+    // Clear all auth data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refresh_token');
+    
+    // Show success notification
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    });
+
+    // Redirect to login page
+    navigate('/login');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Mobile Header */}
-      <div className="md:hidden bg-white dark:bg-slate-800 shadow-sm p-4 flex items-center justify-between">
-        <button 
-          onClick={toggleMobileSidebar}
-          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-        >
-          <Menu size={24} />
-        </button>
-        <h1 className="text-xl font-bold">AI Assistant</h1>
-        <div className="w-8"></div> {/* Spacer for alignment */}
-      </div>
-      
-      {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        ></div>
-      )}
-
+    <div className="min-h-screen flex">
       {/* Sidebar */}
-      <div className={`
-        fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-800 shadow-lg z-50 transform transition-transform duration-300 ease-in-out
-        ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:static md:z-0
-      `}>
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-assistant-primary">AI Assistant</h1>
-        </div>
-        
-        <div className="px-4 py-2">
+      <div className="w-64 h-screen bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 fixed left-0 top-0 overflow-y-auto">
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-8">
+            <Brain className="w-8 h-8 text-assistant-primary" />
+            <span className="text-xl font-bold text-assistant-primary">AI Assistant</span>
+          </div>
+          
           <nav className="space-y-1">
-            {navigationItems.map((item) => (
+            {navItems.map((item) => (
               <Link
-                key={item.name}
+                key={item.path}
                 to={item.path}
-                className={`
-                  flex items-center px-4 py-3 text-sm font-medium rounded-lg
-                  ${location.pathname === item.path 
-                    ? 'bg-assistant-primary text-white' 
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'}
-                `}
+                className={`flex items-center gap-3 px-4 py-2 rounded-md transition-colors ${
+                  location.pathname === item.path
+                    ? 'bg-assistant-primary text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
               >
-                <item.icon size={20} className="mr-3" />
-                {item.name}
+                {item.icon}
+                <span>{item.label}</span>
               </Link>
             ))}
           </nav>
         </div>
-        
-        <div className="absolute bottom-0 w-full p-4 border-t border-slate-200 dark:border-slate-700">
-          <button 
-            className="flex items-center w-full px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-            onClick={() => console.log("Logout")}
-          >
-            <LogOut size={20} className="mr-3" />
-            Logout
-          </button>
-        </div>
       </div>
 
       {/* Main Content */}
-      <div className="md:ml-64 p-4 md:p-8">
-        {children}
+      <div className="pl-64 w-full">
+        <main className="p-6">
+          {children}
+        </main>
       </div>
     </div>
   );
